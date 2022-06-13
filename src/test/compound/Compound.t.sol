@@ -50,7 +50,7 @@ contract CompoundTest is Test {
         AztecTypes.AztecAsset memory empty;
         AztecTypes.AztecAsset memory depositInputAssetA = AztecTypes.AztecAsset({
             id: 1,
-            erc20Address: address(0x0000000000000000000000000000000000000000),
+            erc20Address: address(0),
             assetType: AztecTypes.AztecAssetType.ETH
         });
         AztecTypes.AztecAsset memory depositOutputAssetA = AztecTypes.AztecAsset({
@@ -124,7 +124,7 @@ contract CompoundTest is Test {
 
         AztecTypes.AztecAsset memory ethAsset = AztecTypes.AztecAsset({
             id: 1,
-            erc20Address: address(0x0000000000000000000000000000000000000000),
+            erc20Address: address(0),
             assetType: AztecTypes.AztecAssetType.ETH
         });
 
