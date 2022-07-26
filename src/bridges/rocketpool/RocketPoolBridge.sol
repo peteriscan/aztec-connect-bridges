@@ -1,20 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity >=0.8.4;
 
+//import "forge-std/console2.sol";
+
 import {BridgeBase} from "../base/BridgeBase.sol";
 import {ErrorLib} from "../base/ErrorLib.sol";
 import {AztecTypes} from "../../aztec/libraries/AztecTypes.sol";
 import {IRollupProcessor} from "../../aztec/interfaces/IRollupProcessor.sol";
 
+import {IRocketStorage} from "../../interfaces/rocketpool/IRocketStorage.sol";
 import {IRocketTokenRETH} from "../../interfaces/rocketpool/IRocketTokenRETH.sol";
 import {IRocketDepositPool} from "../../interfaces/rocketpool/IRocketDepositPool.sol";
 
 contract RocketPoolBridge is BridgeBase {
-    IRocketTokenRETH public constant RETH = IRocketTokenRETH(0xae78736Cd615f374D3085123A210448E74Fc6393);
-    IRocketDepositPool public constant DP = IRocketDepositPool(0x4D05E3d48a938db4b7a9A59A802D5b45011BDe58);
+    error UnexpectedAfterDepositState();
+    error UnexpectedAfterBurnState();
+
+    IRocketStorage public constant rocketStorage = IRocketStorage(0x4169D71D56563eA9FDE76D92185bEB7aa1Da6fB8);
+    IRocketTokenRETH public reth;
+    IRocketDepositPool public depositPool;
 
     constructor(address _rollupProcessor) BridgeBase(_rollupProcessor) {
-        RETH.approve(ROLLUP_PROCESSOR, type(uint256).max);
+        setContractAddresses();
+        reth.approve(ROLLUP_PROCESSOR, type(uint256).max);
     }
 
     receive() external payable {}
@@ -35,40 +43,69 @@ contract RocketPoolBridge is BridgeBase {
         onlyRollup
         returns (
             uint256 outputValueA,
-            uint256,
+            uint256 outputValueB,
             bool isAsync
         )
     {
-        isAsync = false;
-
         if (isETH(_inputAssetA)) {
             if (isRETH(_outputAssetA)) {
-                outputValueA = stake(_inputValue);
+                outputValueA = deposit(_inputValue);
             } else {
                 revert ErrorLib.InvalidOutputA();   
             }
         } else if (isRETH(_inputAssetA)) {
             if (isETH(_outputAssetA)) {
-                outputValueA = unstake(_inputValue, _interactionNonce);
+                outputValueA = burn(_inputValue, _interactionNonce);
             } else {
                 revert ErrorLib.InvalidOutputA();
             }
         } else {
             revert ErrorLib.InvalidInputA();
         }
+
+        outputValueB = 0;
+        isAsync = false;
     }
 
     // ETH -> rETH
-    function stake(uint256 _inputValue) private returns (uint256 outputValue)
+    function deposit(uint256 _inputValue) private returns (uint256 outputValue)
     {
-        DP.deposit{value: _inputValue}();
-        outputValue = RETH.balanceOf(address(this));
+        //console2.log("[convert] [deposit] [before] input", _inputValue);
+        //console2.log("[convert] [deposit] [before] ETH balance", address(this).balance);
+        //console2.log("[convert] [deposit] [before] rETH balance", reth.balanceOf(address(this)));
+
+        uint256 beforeBalance = reth.balanceOf(address(this));
+        depositPool.deposit{value: _inputValue}();
+        uint256 afterBalance = reth.balanceOf(address(this));
+
+        if (afterBalance < beforeBalance) {
+            revert UnexpectedAfterDepositState();
+        }
+
+        outputValue = afterBalance - beforeBalance;
+
+        //console2.log("[convert] [deposit] [after] ETH balance", address(this).balance);
+        //console2.log("[convert] [deposit] [after] rETH balance", reth.balanceOf(address(this)));
     }
 
     // rETH -> ETH
-    function unstake(uint256 _inputValue, uint256 _interactionNonce) private returns (uint256 outputValue) {
-        RETH.burn(_inputValue);
-        outputValue = address(this).balance;
+    function burn(uint256 _inputValue, uint256 _interactionNonce) private returns (uint256 outputValue) {
+        //console2.log("[convert] [burn] [before] input", _inputValue);
+        //console2.log("[convert] [burn] [before] ETH balance", address(this).balance);
+        //console2.log("[convert] [burn] [before] rETH balance", reth.balanceOf(address(this)));
+
+        uint256 beforeBalance = address(this).balance;
+        reth.burn(_inputValue);
+        uint256 afterBalance = address(this).balance;
+
+        if (afterBalance < beforeBalance) {
+            revert UnexpectedAfterBurnState();
+        }
+
+        //console2.log("[convert] [burn] [after] ETH balance", address(this).balance);
+        //console2.log("[convert] [burn] [after] rETH balance", reth.balanceOf(address(this)));
+
+        outputValue = afterBalance - beforeBalance;
         IRollupProcessor(ROLLUP_PROCESSOR).receiveEthFromBridge{value: outputValue}(_interactionNonce);
     }
 
@@ -76,7 +113,24 @@ contract RocketPoolBridge is BridgeBase {
         return asset.assetType == AztecTypes.AztecAssetType.ETH;
     }
 
-    function isRETH(AztecTypes.AztecAsset calldata asset) private pure returns (bool) {
-        return asset.assetType == AztecTypes.AztecAssetType.ERC20 && asset.erc20Address == address(RETH);
+    function isRETH(AztecTypes.AztecAsset calldata asset) private view returns (bool) {
+        return asset.assetType == AztecTypes.AztecAssetType.ERC20 && asset.erc20Address == getRETHContractAddress();
+    }
+
+    function setContractAddresses() public {
+        reth = IRocketTokenRETH(getRETHContractAddress());   
+        depositPool = IRocketDepositPool(getDepositPoolContractAddress());
+    }
+
+    function getRETHContractAddress() private view returns (address) {
+        return getContractAddress("rocketTokenRETH");
+    }
+
+    function getDepositPoolContractAddress() private view returns (address) {
+        return getContractAddress("rocketDepositPool");
+    }
+
+    function getContractAddress(string memory contractName) private view returns (address) {
+        return rocketStorage.getAddress(keccak256(abi.encodePacked("contract.address", contractName)));
     }
 }
