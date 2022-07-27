@@ -17,11 +17,10 @@ contract RocketPoolBridge is BridgeBase {
     error UnexpectedAfterBurnState();
 
     IRocketStorage public constant rocketStorage = IRocketStorage(0x4169D71D56563eA9FDE76D92185bEB7aa1Da6fB8);
-    IRocketTokenRETH public reth;
-    IRocketDepositPool public depositPool;
+    IRocketTokenRETH public immutable reth;
 
     constructor(address _rollupProcessor) BridgeBase(_rollupProcessor) {
-        setContractAddresses();
+        reth = IRocketTokenRETH(getRETHContractAddress());
         reth.approve(ROLLUP_PROCESSOR, type(uint256).max);
     }
 
@@ -75,6 +74,7 @@ contract RocketPoolBridge is BridgeBase {
         //console2.log("[convert] [deposit] [before] rETH balance", reth.balanceOf(address(this)));
 
         uint256 beforeBalance = reth.balanceOf(address(this));
+        IRocketDepositPool depositPool = IRocketDepositPool(getDepositPoolContractAddress());
         depositPool.deposit{value: _inputValue}();
         uint256 afterBalance = reth.balanceOf(address(this));
 
@@ -114,12 +114,7 @@ contract RocketPoolBridge is BridgeBase {
     }
 
     function isRETH(AztecTypes.AztecAsset calldata asset) private view returns (bool) {
-        return asset.assetType == AztecTypes.AztecAssetType.ERC20 && asset.erc20Address == getRETHContractAddress();
-    }
-
-    function setContractAddresses() public {
-        reth = IRocketTokenRETH(getRETHContractAddress());   
-        depositPool = IRocketDepositPool(getDepositPoolContractAddress());
+        return asset.assetType == AztecTypes.AztecAssetType.ERC20 && asset.erc20Address == address(reth);
     }
 
     function getRETHContractAddress() private view returns (address) {

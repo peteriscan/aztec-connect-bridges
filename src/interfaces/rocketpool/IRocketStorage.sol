@@ -2,5 +2,5 @@
 pragma solidity >=0.8.4;
 
 interface IRocketStorage {
-  function getAddress(bytes32 key) external view returns (address);
+    function getAddress(bytes32 key) external view returns (address);
 }

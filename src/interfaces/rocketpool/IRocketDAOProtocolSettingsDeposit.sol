@@ -2,5 +2,5 @@
 pragma solidity >=0.8.4;
 
 interface IRocketDAOProtocolSettingsDeposit {
-  function getDepositFee() external view returns (uint256);
+    function getDepositFee() external view returns (uint256);
 }
