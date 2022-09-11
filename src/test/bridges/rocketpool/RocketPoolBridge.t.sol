@@ -15,7 +15,7 @@ import {IRocketDepositPool} from "../../../interfaces/rocketpool/IRocketDepositP
 import {IRocketDAOProtocolSettingsDeposit} from "../../../interfaces/rocketpool/IRocketDAOProtocolSettingsDeposit.sol";
 
 contract RocketPoolBridgeTest is BridgeTestBase {
-    IRocketStorage private constant rocketStorage = IRocketStorage(0x4169D71D56563eA9FDE76D92185bEB7aa1Da6fB8);
+    IRocketStorage private constant rocketStorage = IRocketStorage(0x1d8f8f00cfa6758d7bE78336684788Fb0ee0Fa46);
     IRocketTokenRETH private rocketTokenRETH;
     IRocketDepositPool private rocketDepositPool;
     IRocketDAOProtocolSettingsDeposit private rocketDepositPoolSettings;

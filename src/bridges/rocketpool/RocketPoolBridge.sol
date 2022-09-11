@@ -16,7 +16,7 @@ contract RocketPoolBridge is BridgeBase {
     error UnexpectedAfterDepositState();
     error UnexpectedAfterBurnState();
 
-    IRocketStorage public constant rocketStorage = IRocketStorage(0x4169D71D56563eA9FDE76D92185bEB7aa1Da6fB8);
+    IRocketStorage public constant rocketStorage = IRocketStorage(0x1d8f8f00cfa6758d7bE78336684788Fb0ee0Fa46);
     IRocketTokenRETH public immutable reth;
 
     constructor(address _rollupProcessor) BridgeBase(_rollupProcessor) {
